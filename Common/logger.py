@@ -91,7 +91,7 @@ class Logger:
                    "Perf/Episode reward": episode_reward,
                    "Perf/Step Length": step,
                    }
-        if self.config["do_train"]:
+        if self.config["do_diayn"]:
             metrics.update({"Perf/Running logq(z|s)": self.running_logq_zs})
 
         if losses is not None:
