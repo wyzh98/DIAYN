@@ -89,22 +89,28 @@ class Logger:
 
         metrics = {"Perf/Max episode reward": self.max_episode_reward,
                    "Perf/Episode reward": episode_reward,
-                   "Perf/Running logq(z|s)": self.running_logq_zs,
                    "Perf/Step Length": step,
                    }
+        if self.config["do_train"]:
+            metrics.update({"Perf/Running logq(z|s)": self.running_logq_zs})
+
         if losses is not None:
             metrics = {**metrics,
-                       "Perf/Skill reward": skill_reward,
                        "Perf/Entropy": losses["entropy"],
                        "Loss/Policy loss": losses["policy_loss"],
                        "Loss/Value loss": losses["value_loss"],
                        "Loss/Q loss": losses["q_loss"],
-                       "Loss/Discriminator loss": losses["discriminator_loss"],
                        "Loss/Policy grad norm": losses["policy_grad_norm"],
                        "Loss/Value grad norm": losses["value_grad_norm"],
                        "Loss/Q grad norm": losses["q_grad_norm"],
-                       "Loss/Discriminator grad norm": losses["discriminator_grad_norm"],
                        }
+
+            if self.config["do_diayn"]:
+                metrics = {**metrics,
+                           "Perf/Skill reward": skill_reward,
+                           "Loss/Discriminator loss": losses["discriminator_loss"],
+                           "Loss/Discriminator grad norm": losses["discriminator_grad_norm"],
+                           }
 
         for k, v in metrics.items():
             self.log_writer.add_scalar(k, v, episode)
