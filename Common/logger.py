@@ -89,7 +89,8 @@ class Logger:
 
         metrics = {"Perf/Max episode reward": self.max_episode_reward,
                    "Perf/Episode reward": episode_reward,
-                   "Perf/Running logq(z|s)": self.running_logq_zs
+                   "Perf/Running logq(z|s)": self.running_logq_zs,
+                   "Perf/Step Length": step,
                    }
         if losses is not None:
             metrics = {**metrics,

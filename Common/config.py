@@ -4,7 +4,7 @@ import argparse
 def get_params():
     parser = argparse.ArgumentParser(description="Variable parameters based on the configuration of the machine or user's choice")
 
-    parser.add_argument("--run_name", default="diayn-singleagent-test", type=str, help="Name of the run.")
+    parser.add_argument("--run_name", default="example", type=str, help="Name of the run.")
     parser.add_argument("--env_name", default="Hopper-v3", type=str, help="Name of the environment.")
     parser.add_argument("--interval", default=100, type=int,
                         help="The interval specifies how often different parameters should be saved and printed,"
