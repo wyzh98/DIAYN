@@ -16,6 +16,7 @@ class SACAgent:
         self.p_z = np.tile(p_z, self.batch_size).reshape(self.batch_size, self.n_skills)
         self.memory = Memory(self.config["mem_size"], self.config["seed"])
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print("Device on:", self.device)
 
         torch.manual_seed(self.config["seed"])
         self.policy_network = PolicyNetwork(n_states=self.n_states + self.n_skills,
@@ -60,7 +61,7 @@ class SACAgent:
         state = from_numpy(state).float().to("cpu")
         z = torch.ByteTensor([z]).to("cpu")
         done = torch.BoolTensor([done]).to("cpu")
-        action = torch.Tensor([action]).to("cpu")
+        action = torch.Tensor(np.array(action)).to("cpu")
         next_state = from_numpy(next_state).float().to("cpu")
         self.memory.add(state, z, done, action, next_state)
 
