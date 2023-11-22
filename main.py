@@ -60,7 +60,7 @@ def main():
                 action = agent.choose_action(state)
                 next_state, reward, done, truncated, _ = env.step(action)
                 next_state = concat_state_latent(next_state, z, params["n_skills"])
-                agent.store(state, z, done, action, next_state)
+                agent.store(state, z, done, action, next_state, reward)
                 losses, skill_reward, logq_zs = agent.train()
                 logq_zses += [logq_zs] if logq_zs is not None else [last_logq_zs]
                 episode_reward += reward

@@ -57,13 +57,14 @@ class SACAgent:
         action, _, _ = self.policy_network.sample_or_likelihood(states)
         return action.detach().cpu().numpy()[0]
 
-    def store(self, state, z, done, action, next_state):
+    def store(self, state, z, done, action, next_state, reward):
         state = from_numpy(state).float().to("cpu")
         z = torch.ByteTensor([z]).to("cpu")
         done = torch.BoolTensor([done]).to("cpu")
         action = torch.Tensor(np.array(action)).to("cpu")
         next_state = from_numpy(next_state).float().to("cpu")
-        self.memory.add(state, z, done, action, next_state)
+        reward = torch.Tensor([reward]).to("cpu")
+        self.memory.add(state, z, done, action, next_state, reward)
 
     def unpack(self, batch):
         batch = Transition(*zip(*batch))
@@ -73,15 +74,16 @@ class SACAgent:
         dones = torch.cat(batch.done).view(self.batch_size, 1).to(self.device)
         actions = torch.cat(batch.action).view(-1, self.config["n_actions"]).to(self.device)
         next_states = torch.cat(batch.next_state).view(self.batch_size, self.n_states + self.n_skills).to(self.device)
+        reward = torch.cat(batch.reward).view(self.batch_size, 1).to(self.device)
 
-        return states, zs, dones, actions, next_states
+        return states, zs, dones, actions, next_states, reward
 
     def train(self):
         if len(self.memory) < self.batch_size:
             return None, None, None
 
         batch = self.memory.sample(self.batch_size)
-        states, zs, dones, actions, next_states = self.unpack(batch)
+        states, zs, dones, actions, next_states, env_reward = self.unpack(batch)
         p_z = from_numpy(self.p_z).to(self.device)
 
         # Calculating the value target
@@ -97,12 +99,13 @@ class SACAgent:
         logits = self.discriminator(torch.split(next_states, [self.n_states, self.n_skills], dim=-1)[0])
         p_z = p_z.gather(-1, zs)  # b, z -> b, 1, zs: skill index
         logq_z_ns = log_softmax(logits, dim=-1)
-        rewards = logq_z_ns.gather(-1, zs).detach() - torch.log(p_z + 1e-6)
+        skill_reward = logq_z_ns.gather(-1, zs).detach() - torch.log(p_z + 1e-6)
 
         # Calculating the Q-Value target
+        reward = skill_reward if self.config["do_diayn"] else env_reward
         with torch.no_grad():
             next_value = self.value_target_network(next_states)
-            target_q = self.config["reward_scale"] * rewards.float() + self.config["gamma"] * next_value * (~dones)
+            target_q = self.config["reward_scale"] * reward.float() + self.config["gamma"] * next_value * (~dones)
         q1 = self.q_value_network1(states, actions)
         q2 = self.q_value_network2(states, actions)
         q1_loss = self.mse_loss(q1, target_q)
@@ -132,10 +135,16 @@ class SACAgent:
         q_grad_norm = torch.nn.utils.clip_grad_norm_(self.q_value_network2.parameters(), max_norm=2000)
         self.q_value2_opt.step()
 
-        self.discriminator_opt.zero_grad()
-        discriminator_loss.backward()
-        discriminator_grad_norm = torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=10)
-        self.discriminator_opt.step()
+        if self.config["do_diayn"]:
+            self.discriminator_opt.zero_grad()
+            discriminator_loss.backward()
+            discriminator_grad_norm = torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=10)
+            self.discriminator_opt.step()
+        else:
+            discriminator_loss = torch.zeros_like(discriminator_loss)
+            discriminator_grad_norm = torch.zeros_like(discriminator_loss)
+            logq_z_ns = torch.zeros_like(logq_z_ns)
+            skill_reward = torch.zeros_like(skill_reward)
 
         self.soft_update_target_network(self.value_network, self.value_target_network)
 
@@ -150,7 +159,7 @@ class SACAgent:
                   'entropy': dist_entropy.mean().item(),
                   }
 
-        return losses, rewards.mean().item(), logq_z_ns.mean().item()
+        return losses, skill_reward.mean().item(), logq_z_ns.mean().item()
 
     def soft_update_target_network(self, local_network, target_network):
         for target_param, local_param in zip(target_network.parameters(), local_network.parameters()):

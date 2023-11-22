@@ -108,11 +108,11 @@ class Logger:
 
         for k, v in metrics.items():
             self.log_writer.add_scalar(k, v, episode)
-        self.log_writer.add_histogram("Skill", skill, episode)
+        self.log_writer.add_histogram(f"Skill {skill}", episode_reward, episode)
         self.log_writer.add_histogram("Total Rewards", episode_reward, episode)
         if self.config["wandb"]:
             wandb.log(metrics, step=episode)
-            wandb.log({"Skill": wandb.Histogram(skill)}, step=episode)
+            wandb.log({f"Skill {skill}": wandb.Histogram(episode_reward)}, step=episode)
             wandb.log({"Total Rewards": wandb.Histogram(episode_reward)}, step=episode)
 
         self.on()
