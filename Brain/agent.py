@@ -2,7 +2,6 @@ import numpy as np
 from .model import PolicyNetwork, QvalueNetwork, ValueNetwork, Discriminator
 import torch
 from .replay_memory import Memory, Transition
-from torch import from_numpy
 from torch.optim.adam import Adam
 from torch.nn.functional import log_softmax
 
@@ -10,6 +9,7 @@ from torch.nn.functional import log_softmax
 class SACAgent:
     def __init__(self, p_z, **config):
         self.config = config
+        self.n_obs = self.config["n_obs"]
         self.n_states = self.config["n_states"]
         self.n_skills = self.config["n_skills"]
         self.batch_size = self.config["batch_size"]
@@ -19,8 +19,7 @@ class SACAgent:
         print("Device on:", self.device)
 
         torch.manual_seed(self.config["seed"])
-        self.policy_network = PolicyNetwork(n_states=self.n_states + self.n_skills,
-                                            n_actions=self.config["n_actions"],
+        self.policy_network = PolicyNetwork(n_obs=self.n_obs + self.n_skills, n_actions=self.config["n_actions"],
                                             action_bounds=self.config["action_bounds"],
                                             n_hidden_filters=self.config["n_hiddens"]).to(self.device)
 
@@ -51,43 +50,50 @@ class SACAgent:
         self.policy_opt = Adam(self.policy_network.parameters(), lr=self.config["lr"])
         self.discriminator_opt = Adam(self.discriminator.parameters(), lr=self.config["lr"])
 
-    def choose_action(self, states):
-        states = np.expand_dims(states, axis=0)
-        states = from_numpy(states).float().to(self.device)
-        action, _, _ = self.policy_network.sample_or_likelihood(states)
-        return action.detach().cpu().numpy()[0]
+    def choose_action(self, joint_obs_skill):
+        joint_action = []
+        for obs_skill in joint_obs_skill:
+            obs_skill = np.expand_dims(obs_skill, axis=0)
+            obs_skill = torch.from_numpy(obs_skill).float().to(self.device)
+            action, _, _ = self.policy_network.sample_or_likelihood(obs_skill)
+            joint_action.append(action.detach().cpu().numpy()[0])
+        return joint_action
 
-    def store(self, state, z, done, action, next_state, reward):
-        state = from_numpy(state).float().to("cpu")
+    def store(self, obs, z, done, action, next_obs, state, next_state, reward):
+        obs = torch.from_numpy(obs).reshape(1, -1).float().to("cpu")
+        state = torch.from_numpy(state).reshape(1, -1).float().to("cpu")
         z = torch.ByteTensor([z]).to("cpu")
         done = torch.BoolTensor([done]).to("cpu")
-        action = torch.Tensor(np.array(action)).to("cpu")
-        next_state = from_numpy(next_state).float().to("cpu")
+        action = torch.Tensor(np.array(action)).reshape(1, -1).to("cpu")
+        next_obs = torch.from_numpy(next_obs).reshape(1, -1).float().to("cpu")
+        next_state = torch.from_numpy(next_state).reshape(1, -1).float().to("cpu")
         reward = torch.Tensor([reward]).to("cpu")
-        self.memory.add(state, z, done, action, next_state, reward)
+        self.memory.add(state, z, done, action, next_state, obs, next_obs, reward)
 
     def unpack(self, batch):
         batch = Transition(*zip(*batch))
 
+        obs = torch.cat(batch.obs).view(self.batch_size, self.n_obs + self.n_skills).to(self.device)
         states = torch.cat(batch.state).view(self.batch_size, self.n_states + self.n_skills).to(self.device)
         zs = torch.cat(batch.z).view(self.batch_size, 1).long().to(self.device)
         dones = torch.cat(batch.done).view(self.batch_size, 1).to(self.device)
         actions = torch.cat(batch.action).view(-1, self.config["n_actions"]).to(self.device)
+        next_obs = torch.cat(batch.next_obs).view(self.batch_size, self.n_obs + self.n_skills).to(self.device)
         next_states = torch.cat(batch.next_state).view(self.batch_size, self.n_states + self.n_skills).to(self.device)
         reward = torch.cat(batch.reward).view(self.batch_size, 1).to(self.device)
 
-        return states, zs, dones, actions, next_states, reward
+        return states, zs, dones, actions, next_states, obs, next_obs, reward
 
     def train(self):
         if len(self.memory) < self.batch_size:
             return None, None, None
 
         batch = self.memory.sample(self.batch_size)
-        states, zs, dones, actions, next_states, env_reward = self.unpack(batch)
-        p_z = from_numpy(self.p_z).to(self.device)
+        states, zs, dones, actions, next_states, obs, next_obs, env_reward = self.unpack(batch)
+        p_z = torch.from_numpy(self.p_z).to(self.device)
 
         # Calculating the value target
-        reparam_actions, log_probs, dist_entropy = self.policy_network.sample_or_likelihood(states)
+        reparam_actions, log_probs, dist_entropy = self.policy_network.sample_or_likelihood(obs)
         q1 = self.q_value_network1(states, reparam_actions)
         q2 = self.q_value_network2(states, reparam_actions)
         q = torch.min(q1, q2)
@@ -99,7 +105,7 @@ class SACAgent:
         logits = self.discriminator(torch.split(next_states, [self.n_states, self.n_skills], dim=-1)[0])
         p_z = p_z.gather(-1, zs)  # b, z -> b, 1, zs: skill index
         logq_z_ns = log_softmax(logits, dim=-1)
-        skill_reward = logq_z_ns.gather(-1, zs).detach() - torch.log(p_z + 1e-6)
+        skill_reward = logq_z_ns.gather(-1, zs).detach() - torch.log(p_z + 1e-6)  # detached
 
         # Calculating the Q-Value target
         reward = skill_reward if self.config["do_diayn"] else env_reward

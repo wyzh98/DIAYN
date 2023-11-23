@@ -83,14 +83,14 @@ class QvalueNetwork(nn.Module, ABC):
 
 
 class PolicyNetwork(nn.Module, ABC):
-    def __init__(self, n_states, n_actions, action_bounds, n_hidden_filters=256):
+    def __init__(self, n_obs, n_actions, action_bounds, n_hidden_filters=256):
         super(PolicyNetwork, self).__init__()
-        self.n_states = n_states
+        self.n_obs = n_obs
         self.n_hidden_filters = n_hidden_filters
         self.n_actions = n_actions
         self.action_bounds = action_bounds
 
-        self.hidden1 = nn.Linear(in_features=self.n_states, out_features=self.n_hidden_filters)
+        self.hidden1 = nn.Linear(in_features=self.n_obs, out_features=self.n_hidden_filters)
         init_weight(self.hidden1)
         self.hidden1.bias.data.zero_()
         self.hidden2 = nn.Linear(in_features=self.n_hidden_filters, out_features=self.n_hidden_filters)
@@ -105,8 +105,8 @@ class PolicyNetwork(nn.Module, ABC):
         init_weight(self.log_std, initializer="xavier uniform")
         self.log_std.bias.data.zero_()
 
-    def forward(self, states):
-        x = F.relu(self.hidden1(states))
+    def forward(self, obs):
+        x = F.relu(self.hidden1(obs))
         x = F.relu(self.hidden2(x))
 
         mu = self.mu(x)
@@ -115,8 +115,8 @@ class PolicyNetwork(nn.Module, ABC):
         dist = Normal(mu, std)
         return dist
 
-    def sample_or_likelihood(self, states):
-        dist = self(states)
+    def sample_or_likelihood(self, obs):
+        dist = self(obs)
         # Reparameterization trick
         u = dist.rsample()
         action = torch.tanh(u)

@@ -13,7 +13,7 @@ class Logger:
     def __init__(self, agent, **config):
         self.config = config
         self.agent = agent
-        self.log_dir = self.config["env_name"][:-3] + "/" + self.config["run_name"] + datetime.datetime.now().strftime("_%Y-%m-%d-%H-%M-%S")
+        self.log_dir = self.config["env_name"] + "/" + self.config["run_name"] + datetime.datetime.now().strftime("_%Y-%m-%d-%H-%M-%S")
         self.log_writer = SummaryWriter("Logs/" + self.log_dir)
         self.start_time = 0
         self.duration = 0
@@ -32,9 +32,7 @@ class Logger:
 
     @staticmethod
     def _create_wights_folder(dir):
-        if not os.path.exists("Checkpoints"):
-            os.mkdir("Checkpoints")
-        os.mkdir("Checkpoints/" + dir)
+        os.makedirs("Checkpoints/" + dir, exist_ok=True)
 
     def _log_params(self):
         for k, v in self.config.items():

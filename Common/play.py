@@ -5,8 +5,9 @@ import numpy as np
 import os
 
 
+# GlfwContext(offscreen=True)
+
 class Play:
-    GlfwContext(offscreen=True)
     def __init__(self, env, agent, n_skills):
         self.env = env
         self.agent = agent
