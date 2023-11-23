@@ -34,13 +34,15 @@ class MAMujocoEnv:
         for agent, action in zip(self.agents, joint_action):
             joint_action_set[agent] = action
         joint_obs, reward, terminated, truncated, info = self.env.step(joint_action_set)
-        assert not np.any([*truncated.values()]), "No truncated set"
+        if not np.any([*truncated.values()]): print("Warning: environment truncated", truncated.values())
         assert len(set(reward.values())) == 1, "Reward should be the same for all agents"
         joint_obs = np.array([joint_obs[x] for x in self.agents], dtype=np.float32)
         reward = reward[self.agents[0]]
         terminated = terminated[self.agents[0]]
+        truncated = truncated[self.agents[0]]
+        done = terminated or truncated
         next_state = self.get_current_state()
-        return joint_obs, next_state, reward, terminated, info
+        return joint_obs, next_state, reward, done, info
 
     def get_current_state(self):
         return self.env.state().reshape(1, -1).astype(np.float32)

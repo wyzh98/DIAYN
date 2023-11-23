@@ -23,7 +23,7 @@ class Logger:
         self.to_gb = lambda in_bytes: in_bytes / 1024 / 1024 / 1024
 
         if self.config["wandb"]:
-            wandb.init(project="SkillDiscovery", name=self.config["run_name"] + "_" + self.config["env_name"][:-3], entity="ezo", config=self.config,
+            wandb.init(project="SkillDiscovery", name=self.config["run_name"] + "_" + self.config["env_name"], entity="ezo", config=self.config,
                        notes="", id=None, resume="allow")
 
         if self.config["do_train"] and self.config["train_from_scratch"]:
