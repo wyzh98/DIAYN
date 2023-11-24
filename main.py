@@ -56,8 +56,9 @@ def main():
                 next_state = concat_state_latent(next_state, z, 1, params["n_skills"])
                 for agent_id in range(n_agents):
                     meta_agent.store(joint_obs[agent_id], z, done, joint_action[agent_id], next_joint_obs[agent_id], state, next_state, reward)
-                losses, skill_reward, logq_zs = meta_agent.train()
-                logq_zses += [logq_zs] if logq_zs is not None else [last_logq_zs]
+                if step % params["steps_per_train"] == 0:
+                    losses, skill_reward, logq_zs = meta_agent.train()
+                    logq_zses += [logq_zs] if logq_zs is not None else [last_logq_zs]
                 episode_reward += reward
                 joint_obs = next_joint_obs
                 state = next_state

@@ -2,7 +2,6 @@ import gymnasium_robotics
 import numpy as np
 
 
-
 class MAMujocoEnv:
     def __init__(self, name):
         if name == 'HalfCheetah2x3':
@@ -34,7 +33,7 @@ class MAMujocoEnv:
         for agent, action in zip(self.agents, joint_action):
             joint_action_set[agent] = action
         joint_obs, reward, terminated, truncated, info = self.env.step(joint_action_set)
-        if not np.any([*truncated.values()]): print("Warning: environment truncated", truncated.values())
+        # if np.any([*truncated.values()]): print("Warning: environment truncated", truncated.values())
         assert len(set(reward.values())) == 1, "Reward should be the same for all agents"
         joint_obs = np.array([joint_obs[x] for x in self.agents], dtype=np.float32)
         reward = reward[self.agents[0]]
@@ -49,6 +48,7 @@ class MAMujocoEnv:
 
     def close(self):
         return self.env.close()
+
 
 if __name__ == '__main__':
     env = MAMujocoEnv('Walker2d')
