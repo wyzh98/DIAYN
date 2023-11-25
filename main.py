@@ -29,20 +29,19 @@ def main():
     logger = Logger(meta_agent, **params)
 
     if params["do_train"]:
-        if not params["train_from_scratch"]:
-            episode, last_logq_zs = logger.load_weights()
-            meta_agent.hard_update_target_network()
-            min_episode = episode
-            print("Keep training from previous run.")
+        min_episode = 0
+        last_logq_zs = 0
+        if params["fix_skill"] is not None:
+            assert params["do_diayn"] is False
+            episode, last_logq_zs = logger.load_weights(policy_only=True)
+            print("Policy initialized with skill: ", params["fix_skill"])
         else:
-            min_episode = 0
-            last_logq_zs = 0
             np.random.seed(params["seed"])
             print("Training from scratch.")
 
         logger.on()
         for episode in tqdm(range(1 + min_episode, params["max_n_episodes"] + 1)):
-            z = np.random.choice(params["n_skills"], p=p_z)
+            z = np.random.choice(params["n_skills"], p=p_z) if params["fix_skill"] is None else params["fix_skill"]
             joint_obs, state = env.reset()
             joint_obs = concat_state_latent(joint_obs, z, n_agents, params["n_skills"])
             state = concat_state_latent(state, z, 1, params["n_skills"])

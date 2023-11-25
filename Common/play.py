@@ -11,39 +11,41 @@ class Play:
     def __init__(self, env, agent, n_skills):
         self.env = env
         self.agent = agent
+        self.n_agents = self.env.n_agents
         self.n_skills = n_skills
+        self.max_episode_len = int(1e+6)
         self.agent.set_policy_net_to_cpu_mode()
         self.agent.set_policy_net_to_eval_mode()
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        if not os.path.exists("Vid/"):
-            os.mkdir("Vid/")
+        os.makedirs("Video", exist_ok=True)
 
     @staticmethod
-    def concat_state_latent(s, z_, n):
-        z_one_hot = np.zeros(n)
-        z_one_hot[z_] = 1
-        return np.concatenate([s, z_one_hot])
+    def concat_state_latent(s, z_, n_a, n_z):
+        z_one_hot = np.zeros((n_a, n_z))
+        z_one_hot[:, z_] = 1
+        return np.concatenate([s, z_one_hot], axis=-1)
 
     def evaluate(self):
-
         for z in range(self.n_skills):
-            video_writer = cv2.VideoWriter(f"Vid/skill{z}" + ".avi", self.fourcc, 50.0, (250, 250))
-            s = self.env.reset()
-            s = self.concat_state_latent(s, z, self.n_skills)
+            video_writer = cv2.VideoWriter(f"Video/skill_{z}" + ".avi", self.fourcc, 50.0, (250, 250))
+            joint_obs, state = self.env.reset()
+            joint_obs = self.concat_state_latent(joint_obs, z, self.n_agents, self.n_skills)
             episode_reward = 0
-            for _ in range(self.env.spec.max_episode_steps):
-                action = self.agent.choose_action(s)
-                s_, r, done, _ = self.env.step(action)
-                s_ = self.concat_state_latent(s_, z, self.n_skills)
-                episode_reward += r
-                if done:
-                    break
-                s = s_
-                I = self.env.render(mode='rgb_array')
+            for step in range(self.max_episode_len):
+                joint_action = self.agent.choose_action(joint_obs)
+                next_joint_obs, _, reward, done, _ = self.env.step(joint_action)
+                next_joint_obs = self.concat_state_latent(next_joint_obs, z, self.n_agents, self.n_skills)
+                episode_reward += reward
+                joint_obs = next_joint_obs
+                I = self.env.render()
                 I = cv2.cvtColor(I, cv2.COLOR_RGB2BGR)
+                I = cv2.putText(I, f"Skill {z} Reward: {int(episode_reward)}", org=(20, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                                fontScale=1, color=(0,255,0), thickness=2, lineType=cv2.LINE_AA)
                 I = cv2.resize(I, (250, 250))
                 video_writer.write(I)
-            print(f"skill: {z}, episode reward:{episode_reward:.1f}")
+                if done:
+                    break
+            print(f"skill: {z}, episode reward:{episode_reward:.1f}, episode length:{step+1}")
             video_writer.release()
         self.env.close()
         cv2.destroyAllWindows()

@@ -5,7 +5,6 @@ from torch.utils.tensorboard import SummaryWriter
 import torch
 import os
 import datetime
-import glob
 import wandb
 
 
@@ -19,6 +18,7 @@ class Logger:
         self.duration = 0
         self.running_logq_zs = 0
         self.max_episode_reward = -np.inf
+        self.device = agent.device
         self._turn_on = False
         self.to_gb = lambda in_bytes: in_bytes / 1024 / 1024 / 1024
 
@@ -26,7 +26,7 @@ class Logger:
             wandb.init(project="SkillDiscovery", name=self.config["run_name"] + "_" + self.config["env_name"], entity="ezo", config=self.config,
                        notes="", id=None, resume="allow")
 
-        if self.config["do_train"] and self.config["train_from_scratch"]:
+        if self.config["do_train"]:
             self._create_wights_folder(self.log_dir)
             self._log_params()
 
@@ -138,23 +138,31 @@ class Logger:
                     },
                    "Checkpoints/" + self.log_dir + "/params.pth")
 
-    def load_weights(self):
-        model_dir = glob.glob("Checkpoints/" + self.config["env_name"][:-3] + "/")
-        model_dir.sort()
-        checkpoint = torch.load(model_dir[-1] + "/params.pth")
-        self.log_dir = model_dir[-1].split(os.sep)[-1]
-        self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
-        self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
-        self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])
-        self.agent.value_network.load_state_dict(checkpoint["value_network_state_dict"])
-        self.agent.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
-        self.agent.q_value1_opt.load_state_dict(checkpoint["q_value1_opt_state_dict"])
-        self.agent.q_value2_opt.load_state_dict(checkpoint["q_value2_opt_state_dict"])
-        self.agent.policy_opt.load_state_dict(checkpoint["policy_opt_state_dict"])
-        self.agent.value_opt.load_state_dict(checkpoint["value_opt_state_dict"])
-        self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
+    def load_weights(self, policy_only=False):
+        parent_dir = "Checkpoints/" + self.config["env_name"]
+        subdirs = [f.path for f in os.scandir(parent_dir) if f.is_dir()]
 
-        self.max_episode_reward = checkpoint["max_episode_reward"]
-        self.running_logq_zs = checkpoint["running_logq_zs"]
+        if policy_only:
+            model_dir = sorted(subdirs, key=os.path.getmtime)[-2]  # latest one is the current one
+            checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
+            self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
+        else:
+            model_dir = max(subdirs, key=os.path.getmtime)  # latest one
+            checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
+            self.log_dir = model_dir.split(os.sep)[-1]
+            self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
+            self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
+            self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])
+            self.agent.value_network.load_state_dict(checkpoint["value_network_state_dict"])
+            self.agent.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
+            self.agent.q_value1_opt.load_state_dict(checkpoint["q_value1_opt_state_dict"])
+            self.agent.q_value2_opt.load_state_dict(checkpoint["q_value2_opt_state_dict"])
+            self.agent.policy_opt.load_state_dict(checkpoint["policy_opt_state_dict"])
+            self.agent.value_opt.load_state_dict(checkpoint["value_opt_state_dict"])
+            self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
 
+            self.max_episode_reward = checkpoint["max_episode_reward"]
+            self.running_logq_zs = checkpoint["running_logq_zs"]
+
+        print("Model loaded from: ", self.log_dir)
         return checkpoint["episode"], self.running_logq_zs

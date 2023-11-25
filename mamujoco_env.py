@@ -6,10 +6,10 @@ class MAMujocoEnv:
     def __init__(self, name):
         if name == 'HalfCheetah2x3':
             self.name = name
-            self.env = gymnasium_robotics.mamujoco_v0.parallel_env("HalfCheetah", "2x3")
+            self.env = gymnasium_robotics.mamujoco_v0.parallel_env("HalfCheetah", "2x3", render_mode="rgb_array")
         elif name == 'Walker2d':
             self.name = name
-            self.env = gymnasium_robotics.mamujoco_v0.parallel_env("Walker2d", "2x3")
+            self.env = gymnasium_robotics.mamujoco_v0.parallel_env("Walker2d", "2x3", render_mode="rgb_array")
         else:
             raise NotImplementedError
 
@@ -45,6 +45,9 @@ class MAMujocoEnv:
 
     def get_current_state(self):
         return self.env.state().reshape(1, -1).astype(np.float32)
+
+    def render(self):
+        return self.env.render()
 
     def close(self):
         return self.env.close()

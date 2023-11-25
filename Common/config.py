@@ -6,13 +6,9 @@ def get_params():
 
     parser.add_argument("--run_name", default="example", type=str, help="Name of the run.")
     parser.add_argument("--env_name", default="Walker2d", type=str, help="Name of the environment.")
-    parser.add_argument("--interval", default=100, type=int,
-                        help="The interval specifies how often different parameters should be saved and printed,"
-                             " counted by episodes.")
-    parser.add_argument("--do_train", action="store_true", default=True,
-                        help="The flag determines whether to train the agent or play with it.")
-    parser.add_argument("--train_from_scratch", action="store_false", default=True,
-                        help="The flag determines whether to train from scratch or continue previous tries.")
+    parser.add_argument("--interval", default=100, type=int, help="The interval specifies how often different parameters should be saved and printed, counted by episodes.")
+    parser.add_argument("--do_train", action="store_true", default=True, help="The flag determines whether to train the agent or play with it.")
+    parser.add_argument("--fix_skill", default=None, type=int, help="Fixed skill for post-training")
     parser.add_argument("--do_diayn", action="store_true", default=True, help="Train with DIAYN/intrinsic reward.")
     parser.add_argument("--mem_size", default=int(1e+6), type=int, help="The memory size.")
     parser.add_argument("--n_skills", default=20, type=int, help="The number of skills to learn.")
@@ -26,13 +22,13 @@ def get_params():
     #  Parameters based on the DIAYN and SAC papers.
     # region default parameters
     default_params = {"lr": 3e-4,
-                      "batch_size": 256,
-                      "max_n_episodes": 5000,
+                      "batch_size": 512,
+                      "max_n_episodes": 10000,
                       "max_episode_len": 1000,
                       "gamma": 0.99,
                       "alpha": 0.1,
                       "tau": 0.005,
-                      "n_hiddens": 300
+                      "n_hiddens": 512
                       }
     # endregion
     total_params = {**vars(parser_params), **default_params}
