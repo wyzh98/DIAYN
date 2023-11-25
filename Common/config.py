@@ -17,6 +17,8 @@ def get_params():
     parser.add_argument("--seed", default=123, type=int, help="The randomness' seed for torch, numpy, random & gym[env].")
     parser.add_argument("--wandb", action="store_true", default=True, help="Use wandb.")
 
+    parser.add_argument("--pretrain_name", default="example", type=str, help="Name of the pretrain.")
+
     parser_params = parser.parse_args()
 
     #  Parameters based on the DIAYN and SAC papers.

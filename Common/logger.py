@@ -139,15 +139,11 @@ class Logger:
                    "Checkpoints/" + self.log_dir + "/params.pth")
 
     def load_weights(self, policy_only=False):
-        parent_dir = "Checkpoints/" + self.config["env_name"]
-        subdirs = [f.path for f in os.scandir(parent_dir) if f.is_dir()]
-
+        model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"
         if policy_only:
-            model_dir = sorted(subdirs, key=os.path.getmtime)[-2]  # latest one is the current one
             checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
             self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
         else:
-            model_dir = max(subdirs, key=os.path.getmtime)  # latest one
             checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
             self.log_dir = model_dir.split(os.sep)[-1]
             self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
@@ -164,5 +160,5 @@ class Logger:
             self.max_episode_reward = checkpoint["max_episode_reward"]
             self.running_logq_zs = checkpoint["running_logq_zs"]
 
-        print("Model loaded from: ", self.log_dir)
+        print("Model loaded from: ", model_dir)
         return checkpoint["episode"], self.running_logq_zs
