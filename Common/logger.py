@@ -145,7 +145,6 @@ class Logger:
             self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
         else:
             checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
-            self.log_dir = model_dir.split(os.sep)[-1]
             self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
             self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
             self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])

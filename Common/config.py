@@ -8,7 +8,7 @@ def get_params():
     parser.add_argument("--env_name", default="Walker2d", type=str, help="Name of the environment.")
     parser.add_argument("--interval", default=100, type=int, help="The interval specifies how often different parameters should be saved and printed, counted by episodes.")
     parser.add_argument("--do_train", action="store_true", default=True, help="The flag determines whether to train the agent or play with it.")
-    parser.add_argument("--fix_skill", default=None, type=int, help="Fixed skill for post-training")
+    parser.add_argument("--fix_skill", default=None, type=int, help="Fixed skill for post-training only (0 to evaluate env reward).")
     parser.add_argument("--do_diayn", action="store_true", default=True, help="Train with DIAYN/intrinsic reward.")
     parser.add_argument("--mem_size", default=int(1e+6), type=int, help="The memory size.")
     parser.add_argument("--n_skills", default=20, type=int, help="The number of skills to learn.")

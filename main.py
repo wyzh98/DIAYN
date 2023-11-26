@@ -41,7 +41,13 @@ def main():
 
         logger.on()
         for episode in tqdm(range(1 + min_episode, params["max_n_episodes"] + 1)):
-            z = np.random.choice(params["n_skills"], p=p_z) if params["fix_skill"] is None else params["fix_skill"]
+            if params["fix_skill"] is None:
+                if params["do_diayn"]:
+                    z = np.random.choice(params["n_skills"], p=p_z)
+                else:
+                    z = 0
+            else:
+                z = params["fix_skill"]
             joint_obs, state = env.reset()
             joint_obs = concat_state_latent(joint_obs, z, n_agents, params["n_skills"])
             state = concat_state_latent(state, z, 1, params["n_skills"])
@@ -75,7 +81,7 @@ def main():
     else:
         logger.load_weights()
         player = Play(env, meta_agent, n_skills=params["n_skills"])
-        player.evaluate()
+        player.evaluate(params["fix_skill"])
 
 
 if __name__ == "__main__":
