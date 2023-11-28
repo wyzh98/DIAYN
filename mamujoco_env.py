@@ -4,7 +4,7 @@ import numpy as np
 
 class MAMujocoEnv:
     def __init__(self, name):
-        if name == 'HalfCheetah2x3':
+        if name == 'HalfCheetah':
             self.name = name
             self.env = gymnasium_robotics.mamujoco_v0.parallel_env("HalfCheetah", "2x3", render_mode="rgb_array")
         elif name == 'Walker2d':

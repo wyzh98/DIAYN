@@ -33,7 +33,7 @@ def main():
         last_logq_zs = 0
         if params["fix_skill"] is not None:
             assert params["do_diayn"] is False
-            episode, last_logq_zs = logger.load_weights(policy_only=True)
+            episode, last_logq_zs = logger.load_weights()
             print("Policy initialized with skill: ", params["fix_skill"])
         else:
             np.random.seed(params["seed"])

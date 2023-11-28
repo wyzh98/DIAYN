@@ -140,24 +140,21 @@ class Logger:
 
     def load_weights(self, policy_only=False):
         model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"
-        if policy_only:
-            checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
-            self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
-        else:
-            checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
-            self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
-            self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
-            self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])
-            self.agent.value_network.load_state_dict(checkpoint["value_network_state_dict"])
-            self.agent.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
-            self.agent.q_value1_opt.load_state_dict(checkpoint["q_value1_opt_state_dict"])
-            self.agent.q_value2_opt.load_state_dict(checkpoint["q_value2_opt_state_dict"])
-            self.agent.policy_opt.load_state_dict(checkpoint["policy_opt_state_dict"])
-            self.agent.value_opt.load_state_dict(checkpoint["value_opt_state_dict"])
-            self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
+        checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
+        self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
+        self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
+        self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])
+        self.agent.value_network.load_state_dict(checkpoint["value_network_state_dict"])
+        self.agent.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
+        self.agent.q_value1_opt.load_state_dict(checkpoint["q_value1_opt_state_dict"])
+        self.agent.q_value2_opt.load_state_dict(checkpoint["q_value2_opt_state_dict"])
+        self.agent.policy_opt.load_state_dict(checkpoint["policy_opt_state_dict"])
+        self.agent.value_opt.load_state_dict(checkpoint["value_opt_state_dict"])
+        self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
 
-            self.max_episode_reward = checkpoint["max_episode_reward"]
-            self.running_logq_zs = checkpoint["running_logq_zs"]
+        self.max_episode_reward = checkpoint["max_episode_reward"]
+        self.running_logq_zs = checkpoint["running_logq_zs"]
+        self.agent.hard_update_target_network()
 
         print("Model loaded from: ", model_dir)
         return checkpoint["episode"], self.running_logq_zs
