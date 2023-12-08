@@ -16,7 +16,6 @@ class Logger:
         self.log_writer = SummaryWriter("Logs/" + self.log_dir)
         self.start_time = 0
         self.duration = 0
-        self.running_logq_zs = 0
         self.max_episode_reward = -np.inf
         self.device = agent.device
         self._turn_on = False
@@ -26,9 +25,8 @@ class Logger:
             wandb.init(project="SkillDiscovery", name=self.config["run_name"] + "_" + self.config["env_name"], entity="ezo", config=self.config,
                        notes="", id=None, resume="allow")
 
-        if self.config["do_train"]:
-            self._create_wights_folder(self.log_dir)
-            self._log_params()
+        self._create_wights_folder(self.log_dir)
+        self._log_params()
 
     @staticmethod
     def _create_wights_folder(dir):
@@ -51,14 +49,10 @@ class Logger:
             return
         self._off()
 
-        episode, episode_reward, skill, logq_zs, step, losses, skill_reward = args
+        episode, episode_reward, skill, logq_zs, step, losses, skill_reward, do_diayn = args
 
         self.max_episode_reward = max(self.max_episode_reward, episode_reward)
-
-        if self.running_logq_zs == 0:
-            self.running_logq_zs = logq_zs
-        else:
-            self.running_logq_zs = 0.99 * self.running_logq_zs + 0.01 * logq_zs
+        self.config["do_diayn"] = do_diayn
 
         ram = psutil.virtual_memory()
         assert self.to_gb(ram.used) < 0.98 * self.to_gb(ram.total), "RAM usage exceeded permitted limit!"
@@ -90,7 +84,7 @@ class Logger:
                    "Perf/Step Length": step,
                    }
         if self.config["do_diayn"]:
-            metrics.update({"Perf/Running logq(z|s)": self.running_logq_zs})
+            metrics.update({"Perf/Running logq(z|s)": logq_zs})
 
         if losses is not None:
             metrics = {**metrics,
@@ -134,11 +128,10 @@ class Logger:
                     "discriminator_opt_state_dict": self.agent.discriminator_opt.state_dict(),
                     "episode": episode,
                     "max_episode_reward": self.max_episode_reward,
-                    "running_logq_zs": self.running_logq_zs
                     },
                    "Checkpoints/" + self.log_dir + "/params.pth")
 
-    def load_weights(self, policy_only=False):
+    def load_weights(self):
         model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"
         checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
         self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
@@ -153,8 +146,7 @@ class Logger:
         self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
 
         self.max_episode_reward = checkpoint["max_episode_reward"]
-        self.running_logq_zs = checkpoint["running_logq_zs"]
         self.agent.hard_update_target_network()
 
         print("Model loaded from: ", model_dir)
-        return checkpoint["episode"], self.running_logq_zs
+        return checkpoint["episode"]

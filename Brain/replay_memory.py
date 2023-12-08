@@ -20,6 +20,9 @@ class Memory:
     def sample(self, size):
         return random.sample(self.buffer, size)
 
+    def clean(self):
+        self.buffer = []
+
     def __len__(self):
         return len(self.buffer)
 

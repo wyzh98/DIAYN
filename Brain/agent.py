@@ -167,6 +167,9 @@ class SACAgent:
 
         return losses, skill_reward.mean().item(), logq_z_ns.mean().item()
 
+    def reset_buffer(self):
+        self.memory.clean()
+
     def soft_update_target_network(self, local_network, target_network):
         for target_param, local_param in zip(target_network.parameters(), local_network.parameters()):
             target_param.data.copy_(self.config["tau"] * local_param.data + (1 - self.config["tau"]) * target_param.data)

@@ -1,3 +1,4 @@
+import copy
 import gym
 from Brain import SACAgent
 from Common import Play, Logger, get_params
@@ -12,6 +13,34 @@ def concat_state_latent(s, z_, n_a, n_z):
     z_one_hot = np.zeros((n_a, n_z))
     z_one_hot[:, z_] = 1
     return np.concatenate([s, z_one_hot], axis=-1)
+
+
+def run_episode(episode, z, env, meta_agent, logger, params):
+    joint_obs, state = env.reset()
+    joint_obs = concat_state_latent(joint_obs, z, params["n_agents"], params["n_skills"])
+    state = concat_state_latent(state, z, 1, params["n_skills"])
+    episode_reward = 0
+    logq_zses = []
+
+    for step in range(params["max_episode_len"]):
+        joint_action = meta_agent.choose_action(joint_obs)
+        next_joint_obs, next_state, reward, done, _ = env.step(joint_action)
+        next_joint_obs = concat_state_latent(next_joint_obs, z, params["n_agents"], params["n_skills"])
+        next_state = concat_state_latent(next_state, z, 1, params["n_skills"])
+        for agent_id in range(params["n_agents"]):
+            meta_agent.store(joint_obs[agent_id], z, done, joint_action[agent_id], next_joint_obs[agent_id], state,
+                             next_state, reward)
+        if step % params["steps_per_train"] == 0:
+            losses, skill_reward, logq_zs = meta_agent.train()
+            logq_zses += [logq_zs] if logq_zs is not None else [0]
+        episode_reward += reward
+        joint_obs = next_joint_obs
+        state = next_state
+        if done:
+            break
+
+    logger.log(episode, episode_reward, z, np.mean(logq_zses), step, losses, skill_reward, params["do_diayn"])
+
 
 def main():
     params = get_params()
@@ -28,60 +57,33 @@ def main():
     meta_agent = SACAgent(p_z=p_z, **params)
     logger = Logger(meta_agent, **params)
 
-    if params["do_train"]:
-        min_episode = 0
-        last_logq_zs = 0
-        if params["fix_skill"] is not None:
-            assert params["do_diayn"] is False
-            episode, last_logq_zs = logger.load_weights()
-            print("Policy initialized with skill: ", params["fix_skill"])
-        else:
-            np.random.seed(params["seed"])
-            print("Training from scratch.")
+    np.random.seed(params["seed"])
+    logger.on()
 
-        logger.on()
-        for episode in tqdm(range(1 + min_episode, params["max_n_episodes"] + 1)):
-            if params["fix_skill"] is None:
-                if params["do_diayn"]:
-                    z = np.random.choice(params["n_skills"], p=p_z)
-                else:
-                    z = 0
-            else:
-                z = params["fix_skill"]
-            joint_obs, state = env.reset()
-            joint_obs = concat_state_latent(joint_obs, z, n_agents, params["n_skills"])
-            state = concat_state_latent(state, z, 1, params["n_skills"])
-            episode_reward = 0
-            logq_zses = []
+    # Pretrain with DIAYN
+    print("\n============== Pretraining ==============\n")
+    for episode in tqdm(range(params["pretrain_episodes"])):
+        z = np.random.choice(params["n_skills"], p=p_z) if params["do_diayn"] else 0
+        run_episode(episode, z, env, meta_agent, logger, params)
 
-            for step in range(1, 1 + params["max_episode_len"]):
-                joint_action = meta_agent.choose_action(joint_obs)
-                next_joint_obs, next_state, reward, done, _ = env.step(joint_action)
-                next_joint_obs = concat_state_latent(next_joint_obs, z, n_agents, params["n_skills"])
-                next_state = concat_state_latent(next_state, z, 1, params["n_skills"])
-                for agent_id in range(n_agents):
-                    meta_agent.store(joint_obs[agent_id], z, done, joint_action[agent_id], next_joint_obs[agent_id], state, next_state, reward)
-                if step % params["steps_per_train"] == 0:
-                    losses, skill_reward, logq_zs = meta_agent.train()
-                    logq_zses += [logq_zs] if logq_zs is not None else [last_logq_zs]
-                episode_reward += reward
-                joint_obs = next_joint_obs
-                state = next_state
-                if done: break
-
-            logger.log(episode,
-                       episode_reward,
-                       z,
-                       sum(logq_zses) / len(logq_zses),
-                       step,
-                       losses,
-                       skill_reward,
-                       )
-
+    # Evaluation
+    print("\n============== Evaluating ==============\n")
+    if params["do_diayn"]:
+        player = Play(env, copy.deepcopy(meta_agent), n_skills=params["n_skills"], log_dir=logger.log_dir)
+        episode_rewards = []
+        for z in range(params["n_skills"]):
+            r = player.evaluate(z)
+            episode_rewards.append(r)
     else:
-        logger.load_weights()
-        player = Play(env, meta_agent, n_skills=params["n_skills"])
-        player.evaluate(params["fix_skill"])
+        episode_rewards = [0]
+
+    # Finetuning
+    print("\n============== Finetuning ==============\n")
+    params["do_diayn"] = False
+    meta_agent.reset_buffer()
+    z = np.argmax(episode_rewards)
+    for episode in tqdm(range(params["pretrain_episodes"], params["pretrain_episodes"] + params["finetune_episodes"])):
+        run_episode(episode, z, env, meta_agent, logger, params)
 
 
 if __name__ == "__main__":
