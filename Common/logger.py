@@ -57,10 +57,8 @@ class Logger:
         ram = psutil.virtual_memory()
         assert self.to_gb(ram.used) < 0.98 * self.to_gb(ram.total), "RAM usage exceeded permitted limit!"
 
-        if episode % (self.config["interval"] // 3) == 0:
-            self._save_weights(episode)
-
         if episode % self.config["interval"] == 0:
+            self._save_weights(episode)
             print("E: {}| "
                   "Skill: {}| "
                   "E_Reward: {:.1f}| "
@@ -116,6 +114,7 @@ class Logger:
         self.on()
 
     def _save_weights(self, episode):
+        file_name = "/params_pretrain.pth" if self.config["do_diayn"] else "/params_finetune.pth"
         torch.save({"policy_network_state_dict": self.agent.policy_network.state_dict(),
                     "q_value_network1_state_dict": self.agent.q_value_network1.state_dict(),
                     "q_value_network2_state_dict": self.agent.q_value_network2.state_dict(),
@@ -129,7 +128,7 @@ class Logger:
                     "episode": episode,
                     "max_episode_reward": self.max_episode_reward,
                     },
-                   "Checkpoints/" + self.log_dir + "/params.pth")
+                   "Checkpoints/" + self.log_dir + file_name)
 
     def load_weights(self):
         model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"

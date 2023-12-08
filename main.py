@@ -31,7 +31,7 @@ def run_episode(episode, z, env, meta_agent, logger, params):
             meta_agent.store(joint_obs[agent_id], z, done, joint_action[agent_id], next_joint_obs[agent_id], state,
                              next_state, reward)
         if step % params["steps_per_train"] == 0:
-            losses, skill_reward, logq_zs = meta_agent.train()
+            losses, skill_reward, logq_zs = meta_agent.train(params["do_diayn"])
             logq_zses += [logq_zs] if logq_zs is not None else [0]
         episode_reward += reward
         joint_obs = next_joint_obs

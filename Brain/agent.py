@@ -84,10 +84,11 @@ class SACAgent:
 
         return states, zs, dones, actions, next_states, obs, next_obs, reward
 
-    def train(self):
+    def train(self, do_diayn):
         if len(self.memory) < self.batch_size:
             return None, None, None
 
+        self.config["do_diayn"] = do_diayn
         batch = self.memory.sample(self.batch_size)
         states, zs, dones, actions, next_states, obs, next_obs, env_reward = self.unpack(batch)
         p_z = torch.from_numpy(self.p_z).to(self.device)

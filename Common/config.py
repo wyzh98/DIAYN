@@ -15,7 +15,7 @@ def get_params():
     parser.add_argument("--reward_scale", default=1, type=float, help="The reward scaling factor introduced in SAC.")
     parser.add_argument("--steps_per_train", default=10, type=float, help="Train every n steps.")
     parser.add_argument("--seed", default=123, type=int, help="The randomness' seed for torch, numpy, random & gym[env].")
-    parser.add_argument("--wandb", action="store_true", default=False, help="Use wandb.")
+    parser.add_argument("--wandb", action="store_true", default=True, help="Use wandb.")
 
     parser_params = parser.parse_args()
 
