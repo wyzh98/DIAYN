@@ -70,7 +70,7 @@ class Logger:
                                      skill,
                                      episode_reward,
                                      self.duration,
-                                     len(self.agent.memory),
+                                     self.agent.memory.min_mem_len,
                                      self.duration / step,
                                      self.to_gb(ram.used),
                                      self.to_gb(ram.total),
@@ -115,14 +115,14 @@ class Logger:
 
     def _save_weights(self, episode):
         file_name = "/params_pretrain.pth" if self.config["do_diayn"] else "/params_finetune.pth"
-        torch.save({"policy_network_state_dict": self.agent.policy_network.state_dict(),
+        torch.save({"policy_network_state_dicts": [self.agent.policy_networks[a].state_dict() for a in range(self.config["n_agents"])],
                     "q_value_network1_state_dict": self.agent.q_value_network1.state_dict(),
                     "q_value_network2_state_dict": self.agent.q_value_network2.state_dict(),
                     "value_network_state_dict": self.agent.value_network.state_dict(),
                     "discriminator_state_dict": self.agent.discriminator.state_dict(),
                     "q_value1_opt_state_dict": self.agent.q_value1_opt.state_dict(),
                     "q_value2_opt_state_dict": self.agent.q_value2_opt.state_dict(),
-                    "policy_opt_state_dict": self.agent.policy_opt.state_dict(),
+                    "policy_opt_state_dicts": [self.agent.policy_opts[a].state_dict() for a in range(self.config["n_agents"])],
                     "value_opt_state_dict": self.agent.value_opt.state_dict(),
                     "discriminator_opt_state_dict": self.agent.discriminator_opt.state_dict(),
                     "episode": episode,
@@ -133,14 +133,15 @@ class Logger:
     def load_weights(self):
         model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"
         checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
-        self.agent.policy_network.load_state_dict(checkpoint["policy_network_state_dict"])
+        for a in range(self.config["n_agents"]):
+            self.agent.policy_networks[a].load_state_dict(checkpoint["policy_network_state_dicts"][a])
+            self.agent.policy_opts[a].load_state_dict(checkpoint["policy_opt_state_dicts"][a])
         self.agent.q_value_network1.load_state_dict(checkpoint["q_value_network1_state_dict"])
         self.agent.q_value_network2.load_state_dict(checkpoint["q_value_network2_state_dict"])
         self.agent.value_network.load_state_dict(checkpoint["value_network_state_dict"])
         self.agent.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
         self.agent.q_value1_opt.load_state_dict(checkpoint["q_value1_opt_state_dict"])
         self.agent.q_value2_opt.load_state_dict(checkpoint["q_value2_opt_state_dict"])
-        self.agent.policy_opt.load_state_dict(checkpoint["policy_opt_state_dict"])
         self.agent.value_opt.load_state_dict(checkpoint["value_opt_state_dict"])
         self.agent.discriminator_opt.load_state_dict(checkpoint["discriminator_opt_state_dict"])
 

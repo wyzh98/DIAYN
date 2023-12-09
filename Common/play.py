@@ -17,21 +17,25 @@ class Play:
         os.makedirs("Video/" + log_dir, exist_ok=True)
 
     @staticmethod
-    def concat_state_latent(s, z_, n_a, n_z):
-        z_one_hot = np.zeros((n_a, n_z))
-        z_one_hot[:, z_] = 1
-        return np.concatenate([s, z_one_hot], axis=-1)
+    def concat_state_latent(s_, z_, n_z):
+        sz = []
+        z_one_hot = np.zeros(n_z)
+        z_one_hot[z_] = 1
+        for s in s_:
+            s = np.concatenate([s, z_one_hot])
+            sz.append(s)
+        return sz
 
     def play_episode(self, z, save_video=False):
         if save_video:
             video_writer = cv2.VideoWriter(f"Video/{self.log_dir}/skill_{z}" + ".avi", self.fourcc, 50.0, (250, 250))
         joint_obs, state = self.env.reset()
-        joint_obs = self.concat_state_latent(joint_obs, z, self.n_agents, self.n_skills)
+        joint_obs = self.concat_state_latent(joint_obs, z, self.n_skills)
         episode_reward = 0
         for step in range(self.max_episode_len):
             joint_action = self.agent.choose_action(joint_obs)
             next_joint_obs, _, reward, done, _ = self.env.step(joint_action)
-            next_joint_obs = self.concat_state_latent(next_joint_obs, z, self.n_agents, self.n_skills)
+            next_joint_obs = self.concat_state_latent(next_joint_obs, z, self.n_skills)
             episode_reward += reward
             joint_obs = next_joint_obs
             if save_video:

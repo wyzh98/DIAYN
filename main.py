@@ -9,27 +9,31 @@ import wandb
 from mamujoco_env import MAMujocoEnv
 
 
-def concat_state_latent(s, z_, n_a, n_z):
-    z_one_hot = np.zeros((n_a, n_z))
-    z_one_hot[:, z_] = 1
-    return np.concatenate([s, z_one_hot], axis=-1)
+def concat_state_latent(s_, z_, n_z):
+    sz = []
+    z_one_hot = np.zeros(n_z)
+    z_one_hot[z_] = 1
+    for s in s_:
+        s = np.concatenate([s, z_one_hot])
+        sz.append(s)
+    return sz
 
 
 def run_episode(episode, z, env, meta_agent, logger, params):
     joint_obs, state = env.reset()
-    joint_obs = concat_state_latent(joint_obs, z, params["n_agents"], params["n_skills"])
-    state = concat_state_latent(state, z, 1, params["n_skills"])
+    joint_obs = concat_state_latent(joint_obs, z, params["n_skills"])
+    state = concat_state_latent(state, z, params["n_skills"])[0]
     episode_reward = 0
     logq_zses = []
 
     for step in range(params["max_episode_len"]):
         joint_action = meta_agent.choose_action(joint_obs)
         next_joint_obs, next_state, reward, done, _ = env.step(joint_action)
-        next_joint_obs = concat_state_latent(next_joint_obs, z, params["n_agents"], params["n_skills"])
-        next_state = concat_state_latent(next_state, z, 1, params["n_skills"])
+        next_joint_obs = concat_state_latent(next_joint_obs, z, params["n_skills"])
+        next_state = concat_state_latent(next_state, z, params["n_skills"])[0]
         for agent_id in range(params["n_agents"]):
             meta_agent.store(joint_obs[agent_id], z, done, joint_action[agent_id], next_joint_obs[agent_id], state,
-                             next_state, reward)
+                             next_state, reward, agent_id)
         if step % params["steps_per_train"] == 0:
             losses, skill_reward, logq_zs = meta_agent.train(params["do_diayn"])
             logq_zses += [logq_zs] if logq_zs is not None else [0]
@@ -47,9 +51,9 @@ def main():
     env = MAMujocoEnv(params["env_name"])
     n_agents = env.n_agents
     params.update({"n_agents": n_agents,
-                   "n_states": env.state_spec[0],
-                   'n_obs': env.observation_spec[-1],
-                   "n_actions": env.action_spec[0],
+                   "n_states": env.state_spec,
+                   'n_obs': env.observation_spec,
+                   "n_actions": env.action_spec,
                    "action_bounds": env.action_bounds})
     print("params:", params)
 
