@@ -203,7 +203,15 @@ class SACAgent:
         for a in range(self.n_agents):
             self.policy_networks[a].eval()
 
+    def set_policy_net_to_train_mode(self):
+        for a in range(self.n_agents):
+            self.policy_networks[a].train()
+
     def set_policy_net_to_cpu_mode(self):
-        self.device = torch.device("cpu")
+        device = torch.device("cpu")
+        for a in range(self.n_agents):
+            self.policy_networks[a].to(device)
+
+    def set_policy_net_to_device_mode(self):
         for a in range(self.n_agents):
             self.policy_networks[a].to(self.device)

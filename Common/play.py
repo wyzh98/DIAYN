@@ -16,6 +16,11 @@ class Play:
         self.log_dir = log_dir
         os.makedirs("Video/" + log_dir, exist_ok=True)
 
+    def __del__(self):
+        print("Setting policy net to back train mode...")
+        self.agent.set_policy_net_to_train_mode()
+        self.agent.set_policy_net_to_device_mode()
+
     @staticmethod
     def concat_state_latent(s_, z_, n_z):
         sz = []

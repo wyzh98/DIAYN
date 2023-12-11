@@ -110,8 +110,9 @@ class PolicyNetwork(nn.Module, ABC):
         x = F.relu(self.hidden2(x))
 
         mu = self.mu(x)
-        log_std = self.log_std(x)
-        std = log_std.clamp(min=-20, max=2).exp()
+        log_std = self.log_std(x).tanh()
+        log_std = -5 + 0.5 * 7 * (log_std + 1)  # From SpinUp / Denis Yarats
+        std = log_std.exp()
         dist = Normal(mu, std)
         return dist
 

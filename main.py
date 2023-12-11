@@ -73,11 +73,12 @@ def main():
     # Evaluation
     print("\n============== Evaluating ==============\n")
     if params["do_diayn"]:
-        player = Play(env, copy.deepcopy(meta_agent), n_skills=params["n_skills"], log_dir=logger.log_dir)
+        player = Play(env, meta_agent, n_skills=params["n_skills"], log_dir=logger.log_dir)
         episode_rewards = []
         for z in range(params["n_skills"]):
             r = player.evaluate(z)
             episode_rewards.append(r)
+        del player
     else:
         episode_rewards = [0]
 

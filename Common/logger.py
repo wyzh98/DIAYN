@@ -131,8 +131,9 @@ class Logger:
                    "Checkpoints/" + self.log_dir + file_name)
 
     def load_weights(self):
-        model_dir = f"Checkpoints/{self.config['env_name']}/{self.config['pretrain_name']}"
-        checkpoint = torch.load(model_dir + "/params.pth", map_location=self.device)
+        model_dir = f"Checkpoints/{self.log_dir}"
+        file_name = "/params_pretrain.pth" if self.config["do_diayn"] else "/params_finetune.pth"
+        checkpoint = torch.load(model_dir + file_name, map_location=self.device)
         for a in range(self.config["n_agents"]):
             self.agent.policy_networks[a].load_state_dict(checkpoint["policy_network_state_dicts"][a])
             self.agent.policy_opts[a].load_state_dict(checkpoint["policy_opt_state_dicts"][a])
